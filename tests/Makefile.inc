@@ -40,6 +40,7 @@ EXTRA_DIST += \
     tests/test_SubComponent.py \
     tests/test_SubComponent_2.py \
     tests/test_UnitAlgebra.py \
+    tests/test_PythonUnitAlgebra.py \
     tests/test_PerfComponent.py \
     tests/refFiles/test_Component.out \
     tests/refFiles/test_PerfComponent.out \
@@ -53,7 +54,9 @@ EXTRA_DIST += \
     tests/refFiles/test_RNGComponent_marsaglia.out \
     tests/refFiles/test_RNGComponent_mersenne.out \
     tests/refFiles/test_RNGComponent_xorshift.out \
-    tests/refFiles/test_StatisticsComponent.out \
+    tests/refFiles/test_StatisticsComponent_basic.out \
+    tests/refFiles/test_StatisticsComponent_basic_group_stats.csv \
+    tests/refFiles/test_StatisticsComponent_basic_group_stats.txt \
     tests/refFiles/test_Links_basic.out \
     tests/refFiles/test_Links_dangling.out \
     tests/refFiles/test_Links_wrong_port.out \
@@ -61,6 +64,7 @@ EXTRA_DIST += \
     tests/refFiles/test_SubComponent_2.out \
     tests/refFiles/test_SubComponent.out \
     tests/refFiles/test_UnitAlgebra.out \
+    tests/refFiles/test_PythonUnitAlgebra.out \
     tests/subcomponent_tests/test_sc_2a.py \
     tests/subcomponent_tests/test_sc_2u2u.py \
     tests/subcomponent_tests/test_sc_2u.py \

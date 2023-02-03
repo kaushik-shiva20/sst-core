@@ -16,7 +16,9 @@
 #include "sst/core/componentInfo.h"
 #include "sst/core/eli/elementinfo.h"
 #include "sst/core/event.h"
+#include "sst/core/factory.h"
 #include "sst/core/oneshot.h"
+#include "sst/core/profile/componentProfileTool.h"
 #include "sst/core/simulation.h"
 #include "sst/core/sst_types.h"
 #include "sst/core/statapi/statbase.h"
@@ -310,9 +312,22 @@ protected:
 
     /** Reactivates an existing Clock and Handler
      * @return time of next time clock handler will fire
+     *
+     * Note: If called after the simulation run loop (e.g., in finish() or complete()),
+     * will return the next time of the clock past when the simulation ended. There can
+     * be a small lag between simulation end and detection of simulation end during which
+     * clocks can run a few extra cycles. As a result, the return value just prior to
+     * simulation end may be greater than the value returned after simulation end.
      */
     Cycle_t reregisterClock(TimeConverter* freq, Clock::HandlerBase* handler);
-    /** Returns the next Cycle that the TimeConverter would fire */
+
+    /** Returns the next Cycle that the TimeConverter would fire
+        If called prior to the simulation run loop, next Cycle is 0.
+        If called after the simulation run loop completes (e.g., during
+        complete() or finish()), next  Cycle is one past the end time of
+        the simulation. See Note in reregisterClock() for additional guidance
+        when calling this function after simulation ends.
+     */
     Cycle_t getNextClockCycle(TimeConverter* freq);
 
     /** Registers a default time base for the component and optionally
@@ -381,7 +396,7 @@ protected:
     Statistics::Statistic<T>*
     createNullStatistic(SST::Params& params, const std::string& name, const std::string& statSubId = "")
     {
-        auto* engine = Statistics::StatisticProcessingEngine::getInstance();
+        auto* engine = getStatEngine();
         return engine->createStatistic<T>(my_info->component, "sst.NullStatistic", name, statSubId, params);
     }
 
@@ -485,6 +500,32 @@ protected:
      * NOTE: Currently, this function will only output statistics that are on the same rank.
      */
     void performGlobalStatisticOutput();
+
+    /** Registers a profiling point.
+        This function will register a profiling point.
+        @param point Point to resgister
+        @return Either a pointer to a created T::ProfilePoint or nullptr if not enabled.
+    */
+    template <typename T>
+    typename T::ProfilePoint* registerProfilePoint(const std::string& pointName)
+    {
+        std::string full_point_name = getType() + "." + pointName;
+        auto        tools           = getComponentProfileTools(full_point_name);
+        if ( tools.size() == 0 ) return nullptr;
+
+        typename T::ProfilePoint* ret = new typename T::ProfilePoint();
+        for ( auto* x : tools ) {
+            T* tool = dynamic_cast<T*>(x);
+            if ( nullptr == tool ) {
+                //  Not the right type, fatal
+                fatal(
+                    CALL_INFO_LONG, 1, "ERROR: wrong type of profiling tool for profiling point %s)\n",
+                    pointName.c_str());
+            }
+            ret->registerProfilePoint(tool, pointName, getId(), getName(), getType());
+        }
+        return ret;
+    }
 
     /** Loads a module from an element Library
      * @param type Fully Qualified library.moduleName
@@ -788,6 +829,9 @@ private:
     void
     vfatal(uint32_t line, const char* file, const char* func, int exit_code, const char* format, va_list arg) const;
 
+    // Get the statengine from Simulation_impl
+    StatisticProcessingEngine* getStatEngine();
+
 public:
     SubComponentSlotInfo* getSubComponentSlotInfo(const std::string& name, bool fatalOnEmptyIndex = false);
 
@@ -796,6 +840,7 @@ public:
 
 protected:
     friend class SST::Statistics::StatisticProcessingEngine;
+    friend class SST::Statistics::StatisticBase;
 
     bool isAnonymous() { return my_info->isAnonymous(); }
 
@@ -819,6 +864,8 @@ protected:
     uint8_t      getComponentInfoStatisticEnableLevel(const std::string& statisticName) const;
     // Return the Units for the statisticName from the ElementInfoStatistic
     // std::string getComponentInfoStatisticUnits(const std::string& statisticName) const;
+
+    std::vector<Profile::ComponentProfileTool*> getComponentProfileTools(const std::string& point);
 
 private:
     ComponentInfo*   my_info = nullptr;
